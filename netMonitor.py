@@ -1,3 +1,4 @@
+import argparse
 import time 
 import datetime
 import pandas as pd
@@ -6,6 +7,24 @@ from speedtest import Speedtest
 from influxdb import InfluxDBClient
 from statsmodels.tsa.api import SimpleExpSmoothing, Holt
 
+""" legge le opzioni e gli argomenti passati da linea di comando """
+
+def parse_args():
+
+    parser = argparse.ArgumentParser(prog="netMonitor.py")
+
+    parser.add_argument("-t","--test", help="esegue uno speedtest 'times' volte con frequenza 'frequency'",
+             nargs='*', type=int, metavar=('times', 'frequency'))
+    parser.add_argument("-p","--plot", help="mostra il grafico dei dati raccolti",
+            action="store_true")
+    parser.add_argument("-f","--forecast", help="esegue una previsione usando i dati raccolti",
+            nargs='*', type=float, metavar=('alpha', 'beta'))
+
+    args = parser.parse_args()
+
+    return args
+
+'''----------------------------------------------------------------------------------------------'''
 
 """ esegue lo speedtest sia in download e ritorna
     un dizionario contenente i risultati """
@@ -80,12 +99,17 @@ def ses(dataframe, alpha, nForecast):
 ''' funzione principale '''
 
 def main():
+    
+    args = parse_args()
+    print(args)
 
     '''client = InfluxDBClient("127.0.0.1", 8086, "alessio", "gestione21", "speedtest")
     dataframe = influx2DataFrame(client, 'select ping from speedtest')
     print(dataframe)
     dataframe.plot.line()
     ses(dataframe, 0.2, 3) '''
+    
+
 
 if __name__ == '__main__':
     main()
