@@ -7,7 +7,7 @@ from datetime import datetime
 from speedtest import Speedtest
 from influxdb import InfluxDBClient
 from statsmodels.tsa.api import SimpleExpSmoothing, Holt
-
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 GRAPHICS_PATH = './graphics'
 
@@ -128,7 +128,7 @@ def create_graphs(client, attribute, alpha, beta):
         plot.ylabel('Upload (Mbps)')
 
     plot.grid(axis='both', which='both')
-    plot.savefig(f'{GRAPHICS_PATH}/{attribute}', format='pdf')
+    plot.savefig(f'{GRAPHICS_PATH}/{attribute}.pdf', format='pdf')
 
 
 '''----------------------------------------------------------------------------------------------'''
@@ -182,6 +182,14 @@ def main():
     create_graphs(client, 'upload', alpha, beta)
 
     client.close()
+
+    os.chdir(f'{GRAPHICS_PATH}')
+    server_object = HTTPServer(server_address=('127.0.0.1', 8000), RequestHandlerClass=SimpleHTTPRequestHandler)
+    try: 
+            server_object.serve_forever()
+    except: 
+            print('terminato')
+
 
 '''----------------------------------------------------------------------------------------------'''
 
