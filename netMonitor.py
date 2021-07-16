@@ -3,11 +3,12 @@ import time
 import os
 import pandas as pd
 import matplotlib.pyplot as plot
+import warnings
 from datetime import datetime 
 from speedtest import Speedtest
 from influxdb import InfluxDBClient
 from statsmodels.tsa.api import SimpleExpSmoothing, Holt
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+#from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 GRAPHICS_PATH = './graphics'
 
@@ -176,19 +177,20 @@ def main():
 
     if not os.path.exists(GRAPHICS_PATH):
         os.makedirs(GRAPHICS_PATH)
-
+    
+    warnings.simplefilter(action='ignore', category=FutureWarning)
     create_graphs(client, 'ping', alpha, beta)
     create_graphs(client, 'download', alpha, beta)
     create_graphs(client, 'upload', alpha, beta)
 
     client.close()
 
-    os.chdir(f'{GRAPHICS_PATH}')
-    server_object = HTTPServer(server_address=('127.0.0.1', 8000), RequestHandlerClass=SimpleHTTPRequestHandler)
-    try: 
-            server_object.serve_forever()
-    except: 
-            print('terminato')
+    #os.chdir(f'{GRAPHICS_PATH}')
+    #server_object = HTTPServer(server_address=('127.0.0.1', 8000), RequestHandlerClass=SimpleHTTPRequestHandler)
+    #try: 
+    #        server_object.serve_forever()
+    #except: 
+    #        print('terminato')
 
 
 '''----------------------------------------------------------------------------------------------'''
