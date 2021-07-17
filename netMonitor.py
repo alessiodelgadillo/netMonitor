@@ -10,7 +10,8 @@ from influxdb import InfluxDBClient
 from statsmodels.tsa.api import SimpleExpSmoothing, Holt
 #from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-GRAPHICS_PATH = './graphics'
+DATA = './data'
+GRAPHICS = './graphics'
 
 
 ''' legge le opzioni e gli argomenti passati da linea di comando '''
@@ -19,10 +20,11 @@ def parse_args():
 
     parser = argparse.ArgumentParser(prog="netMonitor.py")
 
-    parser.add_argument("-t","--test", help="esegue uno speedtest 'times' volte",
-            nargs=1, type=int, metavar='times', default=5)
-    parser.add_argument("-f","--forecast", help="esegue una previsione usando l'alpha (e beta) specificato", 
+    parser.add_argument("-t","--test", help="esegue uno speedtest <series> volte con frequenza <rate>",
+            nargs='+', type=int, metavar=('series', 'rate'), default=[5, 3])
+    parser.add_argument("-f","--forecast", help="esegue una previsione usando l'<alpha> (e <beta>) specificato", 
             nargs='+', type=float, metavar=('alpha', 'beta'), default=[0.75])
+    parser.add_argument("-e", "--export", help="esporta i dati raccolti in formato csv", action="store_true")
 
     args = parser.parse_args()
 
@@ -72,7 +74,7 @@ def write2Influx(client, measurement, data):
 
 ''' esegue una query sul database e trasforma il risultato in un dataframe '''
 
-def influx2DataFrame(client, query):
+def influx2DataFrame(client, query, rate):
 
     #ottengo il risultato della query e la trasformo in un dataframe
     points = client.query(query).get_points()
@@ -80,7 +82,8 @@ def influx2DataFrame(client, query):
 
     #trasformo la colonna contenente il tempo nell'indice del dataframe
     datetime_index = pd.DatetimeIndex(pd.to_datetime(tmp_dataframe["time"]).values)
-    dataframe = tmp_dataframe.set_index(datetime_index.to_period(freq='3t'))
+    freq = str(rate) + 't'
+    dataframe = tmp_dataframe.set_index(datetime_index.to_period(freq=freq))
     dataframe.drop('time', axis=1, inplace=True)
 
     return dataframe
@@ -109,12 +112,11 @@ def des(dataframe, alpha, beta):
 
 '''----------------------------------------------------------------------------------------------'''
 
-def create_graphs(client, attribute, alpha, beta):
+def create_graphs(client, attribute, alpha, beta, rate):
     
-    dataframe = influx2DataFrame(client, 'select ' + attribute + ' from speedtest')
+    dataframe = influx2DataFrame(client, 'select ' + attribute + ' from speedtest', rate)
     print(dataframe)
     dataframe.plot.line()
-
     if beta == 0:
         ses(dataframe, alpha)
     else:
@@ -129,7 +131,7 @@ def create_graphs(client, attribute, alpha, beta):
         plot.ylabel('Upload (Mbps)')
 
     plot.grid(axis='both', which='both')
-    plot.savefig(f'{GRAPHICS_PATH}/{attribute}.pdf', format='pdf')
+    plot.savefig(f'{GRAPHICS}/{attribute}.pdf', format='pdf')
 
 
 '''----------------------------------------------------------------------------------------------'''
@@ -140,24 +142,34 @@ def main():
 
     args = parse_args()
     print(args)
-    times = args.test
+    series = args.test.pop(0)
     
-    if times <= 0:
-        print('times deve essere un intero maggiore di zero')
+    if series <= 1:
+        print('series deve essere un intero maggiore di uno')
         exit(-1)
 
-    alpha = args.forecast.pop()
-    if alpha > 1: 
+    rate = 3
+    if len(args.test) > 0:
+        rate = args.test.pop(0)
+        if rate < 3:
+            print('rate deve essere maggiore di 3')
+            exit(-1)
+
+
+    alpha = args.forecast.pop(0)
+    if alpha > 1 or alpha < 0: 
         print('alpha deve essere compreso tra 0 e 1')
         exit(-1)
 
     beta = 0
     if len(args.forecast) > 0:
-        beta = args.forecast.pop()
-        if beta > 1: 
+        beta = args.forecast.pop(0)
+        if beta > 1 or beta < 0: 
             print('beta deve essere compreso tra 0 e 1')
             exit(-1)
 
+
+    export = args.export
     user = input('Inserire lo username di influxdb: ')
     password = input('Inserire la password di influxdb: ')
     database_name = input('Inserire il nome del database di influxdb: ')
@@ -166,23 +178,36 @@ def main():
 
     client.drop_measurement("speedtest")
     
-    for i in range(times):
+    for i in range(series):
         init_time = time.time()
         print('Starting speedtest number ' + str(i+1))
         results = test()
         write2Influx(client, "speedtest", results)
         final_time = time.time()
-        if i != (times-1):
-            time.sleep(180 - (final_time - init_time))
+        if i != (series-1):
+            time.sleep(rate*60 - (final_time - init_time))
 
-    if not os.path.exists(GRAPHICS_PATH):
-        os.makedirs(GRAPHICS_PATH)
+    if not os.path.exists(DATA):
+        os.makedirs(DATA)
+    
+    os.chdir(DATA)
+
+    directory = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    os.makedirs(directory)
+     
+    os.chdir(directory)
+
+    if export==True:
+        dataframe = influx2DataFrame(client, 'select * from speedtest', rate)
+        dataframe.to_csv("./data.csv")
+
+    if not os.path.exists(GRAPHICS):
+        os.makedirs(GRAPHICS)
     
     warnings.simplefilter(action='ignore', category=FutureWarning)
-    create_graphs(client, 'ping', alpha, beta)
-    create_graphs(client, 'download', alpha, beta)
-    create_graphs(client, 'upload', alpha, beta)
-
+    create_graphs(client, 'ping', alpha, beta, rate)
+    create_graphs(client, 'download', alpha, beta, rate)
+    create_graphs(client, 'upload', alpha, beta, rate)
     client.close()
 
     #os.chdir(f'{GRAPHICS_PATH}')
