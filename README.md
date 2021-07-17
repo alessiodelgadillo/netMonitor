@@ -21,7 +21,6 @@ Di seguito, un esempio di come sono organizzati i dati all'interno di InfluxDB:
 
 Una volta che i vari test sono terminati, tramite una query in stile SQL (e.g.: `select ping from speedtest`) è possibile recuperare i dati da utilizzare per i grafici; in particolare, al fine di poter utilizzare gli algoritmi di previsione della libreria `statsmodels` i risultati delle query vengono trasformati in dataframe con indice temporale tramite la libreria `pandas`.
 
-Infine, tutti i grafici vergono salvati nella cartella '`./graphics`'.
 
 ## Installazione
 
@@ -71,3 +70,18 @@ A questo punto è necessario configurare InfluxDB
 ```bash
 pip install -r requirements.txt
 ```
+
+## Esecuzione
+```bash
+netMonitor.py [-h] [-t series [rate ... ]] [-f alpha [beta ...]] [-e]
+```
+
+### Flags
+
+| Flag                                                  | Descrizione                                                     |
+|-------------------------------------------------------|-----------------------------------------------------------------|
+| Flag                                                  | Descrizione                                                     |
+| -h, --help                                            | show this help message and exit                                 |
+| -t series [rate ...],<br/> --test series [rate ...]   | esegue uno speedtest `<series>` volte con frequenza `<rate>`    |
+| -f alpha [beta ...],<br/> --forecast alpha [beta ...] | esegue una previsione usando `<alpha>` (e `<beta>`) specificato |
+| -e, --export                                          | esporta i dati raccolti in formato csv                          |
