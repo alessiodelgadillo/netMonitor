@@ -82,7 +82,6 @@ netMonitor.py [-h] [-t series [rate ... ]] [-f alpha [beta ...]] [-e]
 
 | Flag                                                  | Descrizione                                                  |
 |-------------------------------------------------------|--------------------------------------------------------------|
-| Flag                                                  | Descrizione                                                  |
 | -h, --help                                            | show this help message and exit                              |
 | -t series [rate ...],<br/> --test series [rate ...]   | esegue uno speedtest `<series>` volte con frequenza `<rate>` |
 | -f alpha [beta ...],<br/> --forecast alpha [beta ...] | esegue una previsione usando `<alpha>` (e `<beta>`)          |
