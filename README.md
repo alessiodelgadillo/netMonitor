@@ -1,7 +1,8 @@
 # netMonitor
 
 ## Introduzione
-netMonitor è uno script in python che periodicamente esegue uno speedtest e ne memorizza i risultati in un time-series database. 
+
+**netMonitor** è uno script in python che periodicamente esegue uno speedtest e ne memorizza i risultati in un time-series database. 
 Al termine del ciclo di test viene creato un grafico dei dati raccolti e viene fatta una previsione sullo stato futuro usando il *Simple Exponential Smoothing* e il *Dobule Exponential Smoothing*.
 
 ## Implementazione
@@ -19,8 +20,9 @@ Di seguito, un esempio di come sono organizzati i dati all'interno di InfluxDB:
 | 1626470776157024000 | 23.820717306110698 | 22.884 | 16.240073142308347 |
 | 1626470956881627000 | 23.38635241425917  | 22.972 | 16.380493128365202 |
 
-Una volta che i vari test sono terminati, tramite una query in stile SQL (e.g.: `select ping from speedtest`) è possibile recuperare i dati da utilizzare per i grafici; in particolare, al fine di poter utilizzare gli algoritmi di previsione della libreria `statsmodels` i risultati delle query vengono trasformati in dataframe con indice temporale tramite la libreria `pandas`.
+Una volta che i vari test sono terminati, tramite una query in stile SQL (e.g.: `select ping from speedtest`) è possibile recuperare i dati da utilizzare per i grafici; in particolare, al fine di poter utilizzare gli algoritmi di previsione della libreria `statsmodels`, i risultati delle query vengono trasformati in dataframe con indice temporale tramite la libreria `pandas`.
 
+Durante l'esecuzione dello script viene creata (se non esiste) la directory `data`, all'interno della quale è possibile trovare le directory contenenti i grafici dei dati e delle previsioni in formato `.pdf` ed eventualmente i dati esportati in formato `.csv`.
 
 ## Installazione
 
@@ -59,11 +61,11 @@ A questo punto è necessario configurare InfluxDB
 
 ### Python
 
-- matplotlib, versione 3.4.2 
-- pandas, versione 1.3.0 
-- influxdb, versione 5.3.1 
-- speedtest-cli, versione 2.1.3 
-- statsmodels, versione 0.12.2
+- `matplotlib`, versione 3.4.2 
+- `pandas`, versione 1.3.0 
+- `influxdb`, versione 5.3.1 
+- `speedtest-cli`, versione 2.1.3 
+- `statsmodels`, versione 0.12.2
 
 È possibile installare i pacchetti richiesti tramite
 
@@ -72,16 +74,16 @@ pip install -r requirements.txt
 ```
 
 ## Esecuzione
+
 ```bash
 netMonitor.py [-h] [-t series [rate ... ]] [-f alpha [beta ...]] [-e]
 ```
-
 ### Flags
 
-| Flag                                                  | Descrizione                                                     |
-|-------------------------------------------------------|-----------------------------------------------------------------|
-| Flag                                                  | Descrizione                                                     |
-| -h, --help                                            | show this help message and exit                                 |
-| -t series [rate ...],<br/> --test series [rate ...]   | esegue uno speedtest `<series>` volte con frequenza `<rate>`    |
-| -f alpha [beta ...],<br/> --forecast alpha [beta ...] | esegue una previsione usando `<alpha>` (e `<beta>`) specificato |
-| -e, --export                                          | esporta i dati raccolti in formato csv                          |
+| Flag                                                  | Descrizione                                                  |
+|-------------------------------------------------------|--------------------------------------------------------------|
+| Flag                                                  | Descrizione                                                  |
+| -h, --help                                            | show this help message and exit                              |
+| -t series [rate ...],<br/> --test series [rate ...]   | esegue uno speedtest `<series>` volte con frequenza `<rate>` |
+| -f alpha [beta ...],<br/> --forecast alpha [beta ...] | esegue una previsione usando `<alpha>` (e `<beta>`)          |
+| -e, --export                                          | esporta i dati raccolti in formato csv                       |
