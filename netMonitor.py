@@ -97,8 +97,6 @@ def ses(dataframe, alpha):
     forecast = fit.forecast(1).rename('Simple Exp Smoothing')
     forecast.plot(style='--', marker='o', color='red', legend=True)
 
-    plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+360))
-
 '''----------------------------------------------------------------------------------------------'''
 
 ''' esegue una previsione usando il Double Exponential Smoothing '''
@@ -107,8 +105,6 @@ def des(dataframe, alpha, beta):
     fit = Holt(dataframe, exponential=True).fit(smoothing_level=alpha, smoothing_trend=beta, optimized=False)
     forecast = fit.forecast(2).rename("Exponential trend")
     forecast.plot(style='--', marker='o', color='red', legend=True)
-
-    plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+540))
 
 '''----------------------------------------------------------------------------------------------'''
 
@@ -119,8 +115,10 @@ def create_graphs(client, attribute, alpha, beta, rate):
     dataframe.plot.line()
     if beta == 0:
         ses(dataframe, alpha)
+        plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+ rate * (2*60)))
     else:
         des(dataframe, alpha, beta)
+        plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+ rate *(3*60)))
 
     plot.xlabel('Time')
     if attribute=='ping':
@@ -192,7 +190,7 @@ def main():
     
     os.chdir(DATA)
 
-    directory = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    directory = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
     os.makedirs(directory)
      
     os.chdir(directory)
