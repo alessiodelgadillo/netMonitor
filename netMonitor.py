@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import time 
 import os
@@ -8,7 +9,6 @@ from datetime import datetime
 from speedtest import Speedtest
 from influxdb import InfluxDBClient
 from statsmodels.tsa.api import SimpleExpSmoothing, Holt
-#from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 DATA = './data'
 GRAPHICS = './graphics'
@@ -207,13 +207,6 @@ def main():
     create_graphs(client, 'download', alpha, beta, rate)
     create_graphs(client, 'upload', alpha, beta, rate)
     client.close()
-
-    #os.chdir(f'{GRAPHICS_PATH}')
-    #server_object = HTTPServer(server_address=('127.0.0.1', 8000), RequestHandlerClass=SimpleHTTPRequestHandler)
-    #try: 
-    #        server_object.serve_forever()
-    #except: 
-    #        print('terminato')
 
 
 '''----------------------------------------------------------------------------------------------'''
