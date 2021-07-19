@@ -84,6 +84,8 @@ def influx2DataFrame(client, query, rate):
     datetime_index = pd.DatetimeIndex(pd.to_datetime(tmp_dataframe["time"]).values)
     freq = str(rate) + 't'
     dataframe = tmp_dataframe.set_index(datetime_index.to_period(freq=freq))
+
+    #rimuovo la colonna del tempo
     dataframe.drop('time', axis=1, inplace=True)
 
     return dataframe
@@ -95,6 +97,7 @@ def influx2DataFrame(client, query, rate):
 def ses(dataframe, alpha):
     fit = SimpleExpSmoothing(dataframe).fit(smoothing_level=alpha, optimized=False)
     forecast = fit.forecast(1).rename('Simple Exp Smoothing')
+    fit.fittedvalues.plot(style='--', marker='o', color='red')
     forecast.plot(style='--', marker='o', color='red', legend=True)
 
 '''----------------------------------------------------------------------------------------------'''
@@ -104,22 +107,30 @@ def ses(dataframe, alpha):
 def des(dataframe, alpha, beta):
     fit = Holt(dataframe, exponential=True).fit(smoothing_level=alpha, smoothing_trend=beta, optimized=False)
     forecast = fit.forecast(2).rename("Exponential trend")
+    fit.fittedvalues.plot(style='--', marker='o', color='red')
     forecast.plot(style='--', marker='o', color='red', legend=True)
 
 '''----------------------------------------------------------------------------------------------'''
 
 def create_graphs(client, attribute, alpha, beta, rate):
-    
+
+    #recupero i dati del test
     dataframe = influx2DataFrame(client, 'select ' + attribute + ' from speedtest', rate)
     print(dataframe)
+
+    #genero il grafico
     dataframe.plot.line()
+
+    #Simple Exponential Smoothing
     if beta == 0:
         ses(dataframe, alpha)
         plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+ rate * (2*60)))
     else:
+        #Double Exponential Smoothing
         des(dataframe, alpha, beta)
         plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+ rate *(3*60)))
 
+    #creo i grafici delle previsioni
     plot.xlabel('Time')
     if attribute=='ping':
         plot.ylabel('Ping (ms)')
@@ -131,17 +142,17 @@ def create_graphs(client, attribute, alpha, beta, rate):
     plot.grid(axis='both', which='both')
     plot.savefig(f'{GRAPHICS}/{attribute}.pdf', format='pdf')
 
-
 '''----------------------------------------------------------------------------------------------'''
 
 ''' funzione principale '''
 
 def main():
 
+    #leggo i parametri passati da linea di comando e controlli i valori
     args = parse_args()
     print(args)
     series = args.test.pop(0)
-    
+
     if series <= 1:
         print('series deve essere un intero maggiore di uno')
         exit(-1)
@@ -166,48 +177,55 @@ def main():
             print('beta deve essere compreso tra 0 e 1')
             exit(-1)
 
-
     export = args.export
+
+    #inizializzo client influx
     user = input('Inserire lo username di influxdb: ')
     password = input('Inserire la password di influxdb: ')
     database_name = input('Inserire il nome del database di influxdb: ')
 
     client = InfluxDBClient(username=user, password=password, database=database_name)
 
+    #svuoto la tabella
     client.drop_measurement("speedtest")
-    
+
+    #eseguo i test
     for i in range(series):
+
         init_time = time.time()
         print('Starting speedtest number ' + str(i+1))
+
         results = test()
         write2Influx(client, "speedtest", results)
+
         final_time = time.time()
         if i != (series-1):
             time.sleep(rate*60 - (final_time - init_time))
 
+    #creo le directory per i dati
     if not os.path.exists(DATA):
         os.makedirs(DATA)
-    
     os.chdir(DATA)
 
     directory = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
     os.makedirs(directory)
-     
     os.chdir(directory)
 
+    #esporto dati in csv
     if export==True:
         dataframe = influx2DataFrame(client, 'select * from speedtest', rate)
         dataframe.to_csv("./data.csv")
 
+    #creo i grafici delle previsioni
     if not os.path.exists(GRAPHICS):
         os.makedirs(GRAPHICS)
-    
+
     warnings.simplefilter(action='ignore', category=FutureWarning)
     create_graphs(client, 'ping', alpha, beta, rate)
     create_graphs(client, 'download', alpha, beta, rate)
     create_graphs(client, 'upload', alpha, beta, rate)
-    client.close()
 
+    client.close()
 
 '''----------------------------------------------------------------------------------------------'''
 
