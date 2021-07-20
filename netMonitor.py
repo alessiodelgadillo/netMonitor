@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import argparse
-import time 
+import time
 import os
 import pandas as pd
 import matplotlib.pyplot as plot
 import warnings
-from datetime import datetime 
+from datetime import datetime
 from speedtest import Speedtest
 from influxdb import InfluxDBClient
 from statsmodels.tsa.api import SimpleExpSmoothing, Holt
@@ -22,7 +22,7 @@ def parse_args():
 
     parser.add_argument("-t","--test", help="esegue uno speedtest <series> volte con frequenza <rate>",
             nargs='+', type=int, metavar=('series', 'rate'), default=[5, 3])
-    parser.add_argument("-f","--forecast", help="esegue una previsione usando l'<alpha> (e <beta>) specificato", 
+    parser.add_argument("-f","--forecast", help="esegue una previsione usando l'<alpha> (e <beta>) specificato",
             nargs='+', type=float, metavar=('alpha', 'beta'), default=[0.75])
     parser.add_argument("-e", "--export", help="esporta i dati raccolti in formato csv", action="store_true")
 
@@ -116,7 +116,6 @@ def create_graphs(client, attribute, alpha, beta, rate):
 
     #recupero i dati del test
     dataframe = influx2DataFrame(client, 'select ' + attribute + ' from speedtest', rate)
-    print(dataframe)
 
     #genero il grafico
     dataframe.plot.line()
@@ -150,9 +149,8 @@ def main():
 
     #leggo i parametri passati da linea di comando e controlli i valori
     args = parse_args()
-    print(args)
-    series = args.test.pop(0)
 
+    series = args.test.pop(0)
     if series <= 1:
         print('series deve essere un intero maggiore di uno')
         exit(-1)
@@ -164,16 +162,15 @@ def main():
             print('rate deve essere maggiore di 3')
             exit(-1)
 
-
     alpha = args.forecast.pop(0)
-    if alpha > 1 or alpha < 0: 
+    if alpha > 1 or alpha < 0:
         print('alpha deve essere compreso tra 0 e 1')
         exit(-1)
 
     beta = 0
     if len(args.forecast) > 0:
         beta = args.forecast.pop(0)
-        if beta > 1 or beta < 0: 
+        if beta > 1 or beta < 0:
             print('beta deve essere compreso tra 0 e 1')
             exit(-1)
 
