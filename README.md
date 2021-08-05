@@ -24,6 +24,38 @@ Una volta che i vari test sono terminati, tramite una query in stile SQL (e.g.: 
 
 Durante l'esecuzione dello script viene creata (se non esiste) la directory `data`, all'interno della quale è possibile trovare le directory contenenti i grafici dei dati e delle previsioni in formato `.pdf` ed eventualmente i dati esportati in formato `.csv`.
 
+### Struttura del progetto
+
+Esempio di come si presenta la directory al termine di alcune esecuzioni:
+
+```bash
+.
+├── requirements.txt
+├── netMonitor.py*
+├── data/
+│   ├── 2021-07-19_16.02.09/
+│   │   └── graphics/
+│   │       ├── download.pdf
+│   │       ├── ping.pdf
+│   │       └── upload.pdf
+│   ├── 2021-07-19_15.46.07/
+│   │   └── graphics/
+│   ├── 2021-07-19_16.16.12/
+│   │   └── graphics/
+│   │       ├── download.pdf
+│   │       ├── ping.pdf
+│   │       └── upload.pdf
+│   ├── 2021-07-21_15.10.58/
+│   │   ├── data.csv
+│   │   └── graphics/
+│   │       ├── download.pdf
+│   │       ├── ping.pdf
+│   │       └── upload.pdf
+│   └── 2021-07-19_15.26.06/
+│       └── graphics/
+└── README.md
+```
+
 ## Installazione
 
 ### InfluxDB
