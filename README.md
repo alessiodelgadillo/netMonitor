@@ -108,7 +108,7 @@ pip install -r requirements.txt
 ## Esecuzione
 
 ```bash
-netMonitor.py [-h] [-t series [rate ... ]] [-f alpha [beta ...]] [-e]
+netMonitor.py [-h] [-t series [rate]] [-f alpha [beta]] [-e]
 ```
 ### Flags
 
