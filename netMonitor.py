@@ -190,9 +190,10 @@ def main():
     for i in range(series):
 
         init_time = time.time()
-        print('Starting speedtest number ' + str(i+1))
+        print('Avvio speedtest numero ' + str(i+1))
 
         results = test()
+        print('Speedtest terminato')
         write2Influx(client, "speedtest", results)
 
         final_time = time.time()
