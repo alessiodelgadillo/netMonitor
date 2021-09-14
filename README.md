@@ -14,11 +14,11 @@ Di seguito, un esempio di come sono organizzati i dati all'interno di InfluxDB:
 
 |         time        |      download      |  ping  |       upload       |
 |:-------------------:|:------------------:|:------:|:------------------:|
-| 1626470236134025000 | 21.32500982365902  | 30.353 | 14.516783280552598 |
-| 1626470415512741000 | 22.80587330588549  | 22.204 | 16.20905327065146  |
-| 1626470596755387000 | 23.909459381492344 | 22.001 | 16.17956008944771  |
-| 1626470776157024000 | 23.820717306110698 | 22.884 | 16.240073142308347 |
-| 1626470956881627000 | 23.38635241425917  | 22.972 | 16.380493128365202 |
+| 1631622920457355000 | 24.571354287547912 | 22.117 | 16.241842538478338 |
+| 1631623100204038000 | 22.589696803266417 | 23.085 | 16.215603196816343 |
+| 1631623279513725000 | 19.398868337080096 | 19.098 | 16.237599057090050 |
+| 1631623459206425000 | 22.962247152610168 | 18.781 | 16.294962333008190 |
+| 1631623640059035000 | 26.211082259028903 | 18.360 | 16.207804152626400 |
 
 Una volta che i vari test sono terminati, tramite una query in stile SQL (e.g.: `select ping from speedtest`) è possibile recuperare i dati da utilizzare per i grafici; in particolare, al fine di poter utilizzare gli algoritmi di previsione della libreria `statsmodels`, i risultati delle query vengono trasformati in dataframe con indice temporale tramite la libreria `pandas`.
 
@@ -30,30 +30,28 @@ Esempio di come si presenta la directory al termine di alcune esecuzioni:
 
 ```bash
 .
+├── README.md
 ├── requirements.txt
 ├── netMonitor.py*
-├── data/
-│   ├── 2021-07-19_16.02.09/
-│   │   └── graphics/
-│   │       ├── download.pdf
-│   │       ├── ping.pdf
-│   │       └── upload.pdf
-│   ├── 2021-07-19_15.46.07/
-│   │   └── graphics/
-│   ├── 2021-07-19_16.16.12/
-│   │   └── graphics/
-│   │       ├── download.pdf
-│   │       ├── ping.pdf
-│   │       └── upload.pdf
-│   ├── 2021-07-21_15.10.58/
-│   │   ├── data.csv
-│   │   └── graphics/
-│   │       ├── download.pdf
-│   │       ├── ping.pdf
-│   │       └── upload.pdf
-│   └── 2021-07-19_15.26.06/
-│       └── graphics/
-└── README.md
+└── data/
+    ├── 2021-09-14_12.47.20/
+    │   ├── data.csv
+    │   └── graphics/
+    │       ├── download.pdf
+    │       ├── ping.pdf
+    │       └── upload.pdf
+    ├── 2021-09-14_11.46.37/
+    │   ├── data.csv
+    │   └── graphics/
+    │       ├── download.pdf
+    │       ├── ping.pdf
+    │       └── upload.pdf
+    └── 2021-09-10_16.41.09/
+        ├── data.csv
+        └── graphics/
+            ├── download.pdf
+            ├── ping.pdf
+            └── upload.pdf
 ```
 
 ## Installazione
