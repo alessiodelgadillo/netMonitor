@@ -7,7 +7,6 @@ import matplotlib.pyplot as plot
 import warnings
 from datetime import datetime
 from speedtest import Speedtest
-from influxdb import InfluxDBClient
 from statsmodels.tsa.api import SimpleExpSmoothing, Holt
 
 DATA = './data'
@@ -50,34 +49,27 @@ def test():
 
 ''' scrive i risultati di uno speedtest nella tabella measurement tramite il client di influxdb '''
 
-def write2Influx(client, measurement, data):
+def write_point(points, data):
 
     #salvo l'istante di scrittura
     local_time = datetime.now()
 
     #genero il punto da inserire nel db
-    point = [
-            {
-                "measurement": measurement,
-                "time": local_time,
-                "fields": {
-                    "download": data["download"]/1000000,
-                    "upload": data["upload"]/1000000,
-                    "ping": data["ping"]
-                    }
-                }
-            ]
+    point = {
+            "time": local_time,
+            "download": data["download"]/1000000,
+            "upload": data["upload"]/1000000,
+            "ping": data["ping"]
+            }
 
-    client.write_points(point)
+    points.append(point)
 
 '''----------------------------------------------------------------------------------------------'''
 
 ''' esegue una query sul database e trasforma il risultato in un dataframe '''
 
-def influx2DataFrame(client, query, rate):
+def points2DataFrame(points, rate):
 
-    #ottengo il risultato della query e la trasformo in un dataframe
-    points = client.query(query).get_points()
     tmp_dataframe = pd.DataFrame(points)
 
     #trasformo la colonna contenente il tempo nell'indice del dataframe
@@ -112,10 +104,11 @@ def des(dataframe, alpha, beta):
 
 '''----------------------------------------------------------------------------------------------'''
 
-def create_graphs(client, attribute, alpha, beta, rate):
+def create_graphs(data, attribute, alpha, beta, rate):
 
     #recupero i dati del test
-    dataframe = influx2DataFrame(client, 'select ' + attribute + ' from speedtest', rate)
+    dataframe = pd.DataFrame(data[attribute])
+    print(dataframe)
 
     #genero il grafico
     dataframe.plot.line()
@@ -140,13 +133,13 @@ def create_graphs(client, attribute, alpha, beta, rate):
 
     plot.grid(axis='both', which='both')
     plot.savefig(f'{GRAPHICS}/{attribute}.pdf', format='pdf')
+    
 
 '''----------------------------------------------------------------------------------------------'''
 
 ''' funzione principale '''
 
 def main():
-
     #leggo i parametri passati da linea di comando e controlli i valori
     args = parse_args()
 
@@ -176,28 +169,20 @@ def main():
 
     export = args.export
 
-    #inizializzo client influx
-    user = input('Inserire lo username di influxdb: ')
-    password = input('Inserire la password di influxdb: ')
-    database_name = input('Inserire il nome del database di influxdb: ')
-
-    client = InfluxDBClient(username=user, password=password, database=database_name)
-
-    #svuoto la tabella
-    client.drop_measurement("speedtest")
+    points = []
 
     #eseguo i test
     for i in range(series):
 
         init_time = time.time()
         print('Avvio speedtest numero ' + str(i+1))
-
         results = test()
         print('Speedtest terminato')
-        write2Influx(client, "speedtest", results)
-
         final_time = time.time()
-        if i != (series-1):
+
+        write_point(points, results)
+
+        if (i != 4):
             time.sleep(rate*60 - (final_time - init_time))
 
     #creo le directory per i dati
@@ -209,9 +194,10 @@ def main():
     os.makedirs(directory)
     os.chdir(directory)
 
+    dataframe = points2DataFrame(points, rate)
+
     #esporto dati in csv
     if export==True:
-        dataframe = influx2DataFrame(client, 'select * from speedtest', rate)
         dataframe.to_csv("./data.csv")
 
     #creo i grafici delle previsioni
@@ -219,11 +205,9 @@ def main():
         os.makedirs(GRAPHICS)
 
     warnings.simplefilter(action='ignore', category=FutureWarning)
-    create_graphs(client, 'ping', alpha, beta, rate)
-    create_graphs(client, 'download', alpha, beta, rate)
-    create_graphs(client, 'upload', alpha, beta, rate)
-
-    client.close()
+    create_graphs(dataframe, 'ping', alpha, beta, rate)
+    create_graphs(dataframe, 'download', alpha, beta, rate)
+    create_graphs(dataframe, 'upload', alpha, beta, rate)
 
 '''----------------------------------------------------------------------------------------------'''
 
