@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument("-f","--forecast", help="esegue una previsione usando <alpha>",
             type=float, metavar=('alpha'), default=0.50)
     parser.add_argument("-v", "--verbose", help="stampa i risultati al termine dello script", action="store_true")
-    parser.add_argument("-e", "--export", help="esporta i dati raccolti in formato csv", action="store_true")
+    parser.add_argument("-e", "--export", help="esporta i grafici e i dati raccolti", action="store_true")
 
     args = parser.parse_args()
 
