@@ -2,25 +2,23 @@
 
 ## Introduzione
 
-**netMonitor** è uno script in python che periodicamente esegue uno speedtest e ne memorizza i risultati in un time-series database. 
-Al termine del ciclo di test viene creato un grafico dei dati raccolti e viene fatta una previsione sullo stato futuro usando il *Simple Exponential Smoothing* e il *Dobule Exponential Smoothing*.
+**netMonitor** è uno script in python che periodicamente esegue uno speedtest e ne usa i risultati per generare delle previsioni.
+Al termine del ciclo di test viene creato un grafico dei dati raccolti e viene fatta una previsione sullo stato futuro usando il *Simple Exponential Smoothing*.
 
 ## Implementazione
 
-Gli speedtest sono stati eseguiti con [speedtest.net](https://www.speedtest.net/) usando la libreria python [speedtest-cli](https://pypi.org/project/speedtest-cli/) e si lascia la possibilità all'utente di poter scegliere il numero di test da eseguire e la loro frequenza; tuttavia, per non stressare troppo la rete durante i test e quindi evitare di influenzare i risultati stessi, è stato scelto di impostare una frequenza minima di test (che è anche quella di default) di 3 minuti. 
+Gli speedtest sono stati eseguiti con [speedtest.net](https://www.speedtest.net/) usando la libreria python [speedtest-cli](https://pypi.org/project/speedtest-cli/) e si lascia la possibilità all'utente di poter scegliere il numero di test da eseguire e la loro frequenza; tuttavia, per non stressare troppo la rete durante i test e quindi evitare di influenzare i risultati stessi, è stato scelto di impostare una frequenza minima di test (che è anche quella di default) di 3 minuti.
 
-Come database per raccogliere le serie temporali si è scelto di usare [InfluxDB](https://www.influxdata.com/) versione 1.6.4 per motivi di portabilità e di semplicità d'uso. 
-Di seguito, un esempio di come sono organizzati i dati all'interno di InfluxDB:
+Ogni volta che un test termina, i suoi risultati vengono inseriti in una lista che, tramite la libreria `pandas`, viene trasformata in un dataframe con indice temporale al fine di poter utilizzare l'algoritmo `SimpleExpSmoothing` di previsione della libreria `statsmodels`.
+Inoltre, l'insieme di previsioni viene usato per definire delle **thresholds**: nel caso in cui uno dei valori ottenuti con la misura successiva non rispetti la propria threshold, viene stampato un messaggio che avverte l'utente di tale anomalia.
 
-|         time        |      download      |  ping  |       upload       |
-|:-------------------:|:------------------:|:------:|:------------------:|
-| 1631622920457355000 | 24.571354287547912 | 22.117 | 16.241842538478338 |
-| 1631623100204038000 | 22.589696803266417 | 23.085 | 16.215603196816343 |
-| 1631623279513725000 | 19.398868337080096 | 19.098 | 16.237599057090050 |
-| 1631623459206425000 | 22.962247152610168 | 18.781 | 16.294962333008190 |
-| 1631623640059035000 | 26.211082259028903 | 18.360 | 16.207804152626400 |
+Si noti che
 
-Una volta che i vari test sono terminati, tramite una query in stile SQL (e.g.: `select ping from speedtest`) è possibile recuperare i dati da utilizzare per i grafici; in particolare, al fine di poter utilizzare gli algoritmi di previsione della libreria `statsmodels`, i risultati delle query vengono trasformati in dataframe con indice temporale tramite la libreria `pandas`.
+-  poiché gli algoritmi di previsione necessitano di una serie temporale di almeno due elementi, le previsioni vengono generate a partire dal secondo test;
+- per definire le soglie viene usata l'ultima previsione eseguita e la deviazione standard di tutte le previsioni eseguite fino a quel momento;
+- la funzione `stdev` della libreria `statistics` necessita almeno due valori per calcolare la deviazione standard, quindi le **thresholds** vengono definite a partire dalla terza iterazione.
+
+Di conseguenza è stato fissato il numero minimo di test a tre, anche se si consiglia di eseguirne molti di più.
 
 Durante l'esecuzione dello script viene creata (se non esiste) la directory `data`, all'interno della quale è possibile trovare le directory contenenti i grafici dei dati e delle previsioni in formato `.pdf` ed eventualmente i dati esportati in formato `.csv`.
 
@@ -56,45 +54,11 @@ Esempio di come si presenta la directory al termine di alcune esecuzioni:
 
 ## Installazione
 
-### InfluxDB
+### Requisiti
 
-Su Linux, per quanto riguarda le derivate Debian, la versione 1.6.1 di InfluxDB può essere ottenuta tramite:
-```bash
-sudo apt install influxdb influxdb-client
-```
-**Nota**: accertarsi che il servizio di influx sia correttamente attivato
-
-```bash
-systemctl status influxdb
-sudo systemctl restart influxdb
-```
-A questo punto è necessario configurare InfluxDB
-
-1. avviare il servizio tramite
-    ```bash
-    influx
-    ```
-    la risposta che si dovrebbe ottenere è
-    ```bash
-    Connected to http://localhost:8086 version 1.6.4
-    InfluxDB shell version: 1.6.4
-    ```
-2. creare un nuovo database
-    ```bash
-    create database <database>
-    use <database>
-    ```
-3. creare un nuovo utente
-    ```bash
-    create user <username> with password '<password>' with all privileges
-    ```
-
-### Python
-
-- `matplotlib`, versione 3.4.2 
-- `pandas`, versione 1.3.0 
-- `influxdb`, versione 5.3.1 
-- `speedtest-cli`, versione 2.1.3 
+- `matplotlib`, versione 3.4.3
+- `pandas`, versione 1.3.3
+- `speedtest-cli`, versione 2.1.3
 - `statsmodels`, versione 0.12.2
 
 È possibile installare i pacchetti richiesti tramite
@@ -106,7 +70,7 @@ pip install -r requirements.txt
 ## Esecuzione
 
 ```bash
-netMonitor.py [-h] [-t series [rate]] [-f alpha [beta]] [-e]
+netMonitor.py [-h] [-t series [rate]] [-f alpha] [-e]
 ```
 ### Flags
 
@@ -114,5 +78,5 @@ netMonitor.py [-h] [-t series [rate]] [-f alpha [beta]] [-e]
 |-----------------------------------------------|--------------------------------------------------------------|
 | -h, --help                                    | show this help message and exit                              |
 | -t series [rate],<br/> --test series [rate]   | esegue uno speedtest `<series>` volte con frequenza `<rate>` |
-| -f alpha [beta],<br/> --forecast alpha [beta] | esegue una previsione usando `<alpha>` (e `<beta>`)          |
+| -f alpha,<br/> --forecast alpha               | esegue una previsione usando `<alpha>`                       |
 | -e, --export                                  | esporta i dati raccolti in formato csv                       |
