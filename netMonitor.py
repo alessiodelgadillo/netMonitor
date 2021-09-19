@@ -12,6 +12,7 @@ from statsmodels.tsa.api import SimpleExpSmoothing
 
 DATA = './data'
 GRAPHICS = './graphics'
+LAST_ELEMENT = -1
 
 
 ''' legge le opzioni e gli argomenti passati da linea di comando '''
@@ -20,10 +21,13 @@ def parse_args():
 
     parser = argparse.ArgumentParser(prog="netMonitor.py")
 
-    parser.add_argument("-t","--test", help="esegue uno speedtest <series> volte con frequenza <rate>",
-            nargs='+', type=int, metavar=('series', 'rate'), default=[5, 3])
-    parser.add_argument("-f","--forecast", help="esegue una previsione usando l'<alpha> specificato",
+    parser.add_argument("-t","--times", help="esegue uno speedtest <times> volte",
+            type=int, metavar=('times'), default=5)
+    parser.add_argument("-p","--period", help="indica il periodo con cui eseguire gli speedtest",
+            type=int, metavar=('period'), default=3)
+    parser.add_argument("-f","--forecast", help="esegue una previsione usando <alpha>",
             type=float, metavar=('alpha'), default=0.50)
+    parser.add_argument("-v", "--verbose", help="stampa i risultati al termine dello script", action="store_true")
     parser.add_argument("-e", "--export", help="esporta i dati raccolti in formato csv", action="store_true")
 
     args = parser.parse_args()
@@ -69,13 +73,13 @@ def write_point(points, data):
 
 ''' esegue una query sul database e trasforma il risultato in un dataframe '''
 
-def points2DataFrame(points, rate):
+def points2DataFrame(points, period):
 
     tmp_dataframe = pd.DataFrame(points)
 
     #trasformo la colonna contenente il tempo nell'indice del dataframe
     datetime_index = pd.DatetimeIndex(pd.to_datetime(tmp_dataframe["time"]).values)
-    freq = str(rate) + 't'
+    freq = str(period) + 't'
     dataframe = tmp_dataframe.set_index(datetime_index.to_period(freq=freq))
 
     #rimuovo la colonna del tempo
@@ -115,7 +119,7 @@ def check_anomaly (attribute, point, forecast, threshold):
 
 '''----------------------------------------------------------------------------------------------'''
 
-def create_graphs(data, attribute, alpha, rate):
+def create_graphs(data, attribute, alpha, period):
 
     #recupero i dati del test
     dataframe = pd.DataFrame(data[attribute])
@@ -128,7 +132,7 @@ def create_graphs(data, attribute, alpha, rate):
     forecast = fit.forecast(1).rename('Simple Exp Smoothing')
     fit.fittedvalues.plot(style='--', marker='o', color='red')
     forecast.plot(style='--', marker='o', color='red', legend=True)
-    plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+ rate * (2*60)))
+    plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+ period * (2*60)))
 
     #creo i grafici delle previsioni
     plot.xlabel('Time')
@@ -150,23 +154,22 @@ def main():
     #leggo i parametri passati da linea di comando e controlli i valori
     args = parse_args()
 
-    series = args.test.pop(0)
-    if series <= 3:
-        print('series deve essere un intero maggiore di 3')
+    times = args.times
+    if times == 0:
+        print('times deve essere diverso da 0')
         exit(-1)
 
-    rate = 3
-    if len(args.test) > 0:
-        rate = args.test.pop(0)
-        if rate < 3:
-            print('rate deve essere maggiore di 3')
-            exit(-1)
+    period = args.period
+    if period < 3:
+        print('period deve essere maggiore di 3')
+        exit(-1)
 
     alpha = args.forecast
     if alpha > 1 or alpha < 0:
         print('alpha deve essere compreso tra 0 e 1')
         exit(-1)
 
+    verbose = args.verbose
     export = args.export
 
     # inizializzo la lista per mantenere i risultati degli speedtest
@@ -184,63 +187,79 @@ def main():
 
     #eseguo i test
     warnings.simplefilter(action='ignore', category=FutureWarning)
-    for i in range(series):
 
-        init_time = time.time()
-        print('Avvio speedtest numero ' + str(i+1))
-        results = test()
-        print('Speedtest terminato')
-        write_point(points, results)
+    i=0
+    while True:
 
-        # controllo se ci sono anomalie
-        if len(points) >= 3:
-            check_anomaly('download', points[-1]['download'], fcasts_download[-1], threshold_download)
-            check_anomaly('upload', points[-1]['upload'], fcasts_upload[-1], threshold_upload)
-            check_anomaly('ping', points[-1]['ping'], fcasts_ping[-1], threshold_ping)
+        try:
+            init_time = time.time()
+            print('Avvio speedtest numero ' + str(i+1))
+            results = test()
+            print('Speedtest terminato')
+            write_point(points, results)
 
-        # converto la lista in un dataframe
-        dataframe = points2DataFrame(points, rate)
+            # controllo se ci sono anomalie
+            if len(points) >= 3:
+                check_anomaly('download', points[LAST_ELEMENT]['download'], fcasts_download[LAST_ELEMENT], threshold_download)
+                check_anomaly('upload', points[LAST_ELEMENT]['upload'], fcasts_upload[LAST_ELEMENT], threshold_upload)
+                check_anomaly('ping', points[LAST_ELEMENT]['ping'], fcasts_ping[LAST_ELEMENT], threshold_ping)
 
-        if (i > 0):
-            # eseguo le previsioni
-            fcasts_download.extend((ses(dataframe, 'download', alpha).to_list()))
-            fcasts_ping.extend(ses(dataframe, 'ping', alpha).to_list())
-            fcasts_upload.extend(ses(dataframe, 'upload', alpha).to_list())
+            # converto la lista in un dataframe
+            dataframe = points2DataFrame(points, period)
 
-            # aggiorno le soglie
-            if (i > 1):
-                threshold_download = fcasts_download[-1] - statistics.stdev(fcasts_download)
-                threshold_upload = fcasts_upload[-1] - statistics.stdev(fcasts_upload)
-                threshold_ping = fcasts_ping[-1] + statistics.stdev(fcasts_ping)
+            if (i > 0):
+                # eseguo le previsioni
+                fcasts_download.extend((ses(dataframe, 'download', alpha).to_list()))
+                fcasts_ping.extend(ses(dataframe, 'ping', alpha).to_list())
+                fcasts_upload.extend(ses(dataframe, 'upload', alpha).to_list())
 
-        final_time = time.time()
+                # aggiorno le soglie
+                if (i > 1):
+                    threshold_download = fcasts_download[LAST_ELEMENT] - statistics.stdev(fcasts_download)
+                    threshold_upload = fcasts_upload[LAST_ELEMENT] - statistics.stdev(fcasts_upload)
+                    threshold_ping = fcasts_ping[LAST_ELEMENT] + statistics.stdev(fcasts_ping)
 
-        if (i != series-1):
-            time.sleep(rate*60 - (final_time - init_time))
+            final_time = time.time()
 
-    #creo le directory per i dati
-    if not os.path.exists(DATA):
-        os.makedirs(DATA)
-    os.chdir(DATA)
+            if (i == times-1):
+                break
 
-    directory = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
-    os.makedirs(directory)
-    os.chdir(directory)
+            time.sleep(period*60 - (final_time - init_time))
+            i+=1
 
-    dataframe = points2DataFrame(points, rate)
+        except KeyboardInterrupt:
+            print("\nTest interrotto.")
+            break
 
-    #esporto dati in csv
-    if export==True:
-        dataframe.to_csv("./data.csv")
+    nTest = len(points)
+
+    if nTest > 0 and (verbose or export) :
+        dataframe = points2DataFrame(points, period)
         print(dataframe)
 
-    #creo i grafici delle previsioni
-    if not os.path.exists(GRAPHICS):
-        os.makedirs(GRAPHICS)
+        if export:
+            #creo le directory per i dati
+            if not os.path.exists(DATA):
+                os.makedirs(DATA)
+            os.chdir(DATA)
 
-    create_graphs(dataframe, 'ping', alpha, rate)
-    create_graphs(dataframe, 'download', alpha, rate)
-    create_graphs(dataframe, 'upload', alpha, rate)
+            directory = datetime.now().strftime("%Y-%m-%d_%H.%M")
+            os.makedirs(directory)
+            os.chdir(directory)
+
+            #esporto dati in csv
+            dataframe.to_csv("./data.csv")
+
+            if nTest == 1:
+                print("Non sono stati eseguiti abbastanza test per poter generare i grafici")
+                return
+            #creo i grafici delle previsioni
+            if not os.path.exists(GRAPHICS):
+                os.makedirs(GRAPHICS)
+
+            create_graphs(dataframe, 'ping', alpha, period)
+            create_graphs(dataframe, 'download', alpha, period)
+            create_graphs(dataframe, 'upload', alpha, period)
 
 '''----------------------------------------------------------------------------------------------'''
 
