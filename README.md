@@ -8,23 +8,22 @@ Al termine del ciclo di test viene creato un grafico dei dati raccolti e viene f
 ## Implementazione
 
 Gli speedtest sono stati eseguiti con [speedtest.net](https://www.speedtest.net/) usando la libreria python [speedtest-cli](https://pypi.org/project/speedtest-cli/) e si lascia la possibilità all'utente di poter scegliere il numero di test da eseguire e la loro frequenza; tuttavia, per non stressare troppo la rete durante i test e quindi evitare di influenzare i risultati stessi, è stato scelto di impostare una frequenza minima di test (che è anche quella di default) di 3 minuti.
+Nel caso in cui l'utente specifichi un numero negativo di ripetizioni, lo script viene eseguito fintanto che `<C-c>` non viene premuto.
 
 Ogni volta che un test termina, i suoi risultati vengono inseriti in una lista che, tramite la libreria `pandas`, viene trasformata in un dataframe con indice temporale al fine di poter utilizzare l'algoritmo `SimpleExpSmoothing` di previsione della libreria `statsmodels`.
 Inoltre, l'insieme di previsioni viene usato per definire delle **thresholds**: nel caso in cui uno dei valori ottenuti con la misura successiva non rispetti la propria threshold, viene stampato un messaggio che avverte l'utente di tale anomalia.
 
-Si noti che
+**Attenzione**:
 
--  poiché gli algoritmi di previsione necessitano di una serie temporale di almeno due elementi, le previsioni vengono generate a partire dal secondo test;
+- poiché gli algoritmi di previsione necessitano di una serie temporale di almeno due elementi, le previsioni vengono generate a partire dal secondo test;
 - per definire le soglie viene usata l'ultima previsione eseguita e la deviazione standard di tutte le previsioni eseguite fino a quel momento;
 - la funzione `stdev` della libreria `statistics` necessita almeno due valori per calcolare la deviazione standard, quindi le **thresholds** vengono definite a partire dalla terza iterazione.
 
-Di conseguenza è stato fissato il numero minimo di test a tre, anche se si consiglia di eseguirne molti di più.
-
-Durante l'esecuzione dello script viene creata (se non esiste) la directory `data`, all'interno della quale è possibile trovare le directory contenenti i grafici dei dati e delle previsioni in formato `.pdf` ed eventualmente i dati esportati in formato `.csv`.
+Se l'utente usa il flag `--export`, allora durante l'esecuzione viene creata (se non esiste) la directory `data`, all'interno della quale è possibile trovare le directory contenenti i grafici dei dati e delle previsioni in formato `.pdf` e i dati esportati in formato `.csv`.
 
 ### Struttura del progetto
 
-Esempio di come si presenta la directory al termine di alcune esecuzioni:
+Esempio di come si presenta la directory al termine di alcune esecuzioni in cui sono stati esportati i dati:
 
 ```bash
 .
@@ -70,13 +69,15 @@ pip install -r requirements.txt
 ## Esecuzione
 
 ```bash
-netMonitor.py [-h] [-t series [rate]] [-f alpha] [-e]
+netMonitor.py [-h] [-t times] [-p period] [-f alpha] [-v] [-e]
 ```
 ### Flags
 
-| Flag                                          | Descrizione                                                  |
-|-----------------------------------------------|--------------------------------------------------------------|
-| -h, --help                                    | show this help message and exit                              |
-| -t series [rate],<br/> --test series [rate]   | esegue uno speedtest `<series>` volte con frequenza `<rate>` |
-| -f alpha,<br/> --forecast alpha               | esegue una previsione usando `<alpha>`                       |
-| -e, --export                                  | esporta i dati raccolti in formato csv                       |
+| Flag                            | Descrizione                                        |
+|---------------------------------|----------------------------------------------------|
+| -h, --help                      | show this help message and exit                    |
+| -t times,<br/> --times times    | esegue uno speedtest `<times>` volte               |
+| -p period,<br/> --period period | indica il periodo con cui eseguire gli speedtest   |
+| -f alpha,<br/> --forecast alpha | esegue una previsione usando `<alpha>`             |
+| -v, --verbose                   | stampa i risultati al termine dello script         |
+| -e, --export                    | esporta i grafici e i dati raccolti in formato csv |
