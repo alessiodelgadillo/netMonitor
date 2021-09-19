@@ -4,10 +4,11 @@ import time
 import os
 import pandas as pd
 import matplotlib.pyplot as plot
+import statistics
 import warnings
 from datetime import datetime
 from speedtest import Speedtest
-from statsmodels.tsa.api import SimpleExpSmoothing, Holt
+from statsmodels.tsa.api import SimpleExpSmoothing
 
 DATA = './data'
 GRAPHICS = './graphics'
@@ -21,8 +22,8 @@ def parse_args():
 
     parser.add_argument("-t","--test", help="esegue uno speedtest <series> volte con frequenza <rate>",
             nargs='+', type=int, metavar=('series', 'rate'), default=[5, 3])
-    parser.add_argument("-f","--forecast", help="esegue una previsione usando l'<alpha> (e <beta>) specificato",
-            nargs='+', type=float, metavar=('alpha', 'beta'), default=[0.75])
+    parser.add_argument("-f","--forecast", help="esegue una previsione usando l'<alpha> specificato",
+            type=float, metavar=('alpha'), default=0.50)
     parser.add_argument("-e", "--export", help="esporta i dati raccolti in formato csv", action="store_true")
 
     args = parser.parse_args()
@@ -86,41 +87,48 @@ def points2DataFrame(points, rate):
 
 ''' esegue una previsione usando il Simple Exponential Smoothing '''
 
-def ses(dataframe, alpha):
+def ses(data, attribute, alpha):
+    dataframe = pd.DataFrame(data[attribute])
     fit = SimpleExpSmoothing(dataframe).fit(smoothing_level=alpha, optimized=False)
     forecast = fit.forecast(1).rename('Simple Exp Smoothing')
-    fit.fittedvalues.plot(style='--', marker='o', color='red')
-    forecast.plot(style='--', marker='o', color='red', legend=True)
+    return forecast
 
 '''----------------------------------------------------------------------------------------------'''
 
-''' esegue una previsione usando il Double Exponential Smoothing '''
+''' controlla che i valori letti rispettino l'intervallo previsto '''
 
-def des(dataframe, alpha, beta):
-    fit = Holt(dataframe, exponential=True).fit(smoothing_level=alpha, smoothing_trend=beta, optimized=False)
-    forecast = fit.forecast(2).rename("Exponential trend")
-    fit.fittedvalues.plot(style='--', marker='o', color='red')
-    forecast.plot(style='--', marker='o', color='red', legend=True)
+def check_anomaly (attribute, point, forecast, threshold):
+    if point>threshold:
+        if attribute == 'ping' :
+            # il valore misurato supera il massimo previsto
+            print("Sembra che ci siano problemi di latenza:")
+            print(f"Valore previsto: %.3f ms" % forecast)
+            print(f"Valore massimo previsto: %.3f ms" % threshold)
+            print(f"Valore letto: %.3f ms\n" % point)
+    elif point < threshold :
+        if attribute == 'upload' or attribute == 'download':
+            # il valore misurato è inferiore al minimo previsto
+            print("Sembra che ci sia un problema in " + attribute)
+            print(f"Valore previsto: %.3f Mbps" % forecast)
+            print(f"Valore minimo previsto: %.3f Mbps" % threshold)
+            print(f"Valore letto: %.3f Mbps\n" % point)
 
 '''----------------------------------------------------------------------------------------------'''
 
-def create_graphs(data, attribute, alpha, beta, rate):
+def create_graphs(data, attribute, alpha, rate):
 
     #recupero i dati del test
     dataframe = pd.DataFrame(data[attribute])
-    print(dataframe)
 
     #genero il grafico
     dataframe.plot.line()
 
     #Simple Exponential Smoothing
-    if beta == 0:
-        ses(dataframe, alpha)
-        plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+ rate * (2*60)))
-    else:
-        #Double Exponential Smoothing
-        des(dataframe, alpha, beta)
-        plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+ rate *(3*60)))
+    fit = SimpleExpSmoothing(dataframe).fit(smoothing_level=alpha, optimized=False)
+    forecast = fit.forecast(1).rename('Simple Exp Smoothing')
+    fit.fittedvalues.plot(style='--', marker='o', color='red')
+    forecast.plot(style='--', marker='o', color='red', legend=True)
+    plot.xlim(dataframe.index[0], datetime.fromtimestamp(time.time()+ rate * (2*60)))
 
     #creo i grafici delle previsioni
     plot.xlabel('Time')
@@ -133,7 +141,6 @@ def create_graphs(data, attribute, alpha, beta, rate):
 
     plot.grid(axis='both', which='both')
     plot.savefig(f'{GRAPHICS}/{attribute}.pdf', format='pdf')
-    
 
 '''----------------------------------------------------------------------------------------------'''
 
@@ -144,8 +151,8 @@ def main():
     args = parse_args()
 
     series = args.test.pop(0)
-    if series <= 1:
-        print('series deve essere un intero maggiore di uno')
+    if series <= 3:
+        print('series deve essere un intero maggiore di 3')
         exit(-1)
 
     rate = 3
@@ -155,34 +162,60 @@ def main():
             print('rate deve essere maggiore di 3')
             exit(-1)
 
-    alpha = args.forecast.pop(0)
+    alpha = args.forecast
     if alpha > 1 or alpha < 0:
         print('alpha deve essere compreso tra 0 e 1')
         exit(-1)
 
-    beta = 0
-    if len(args.forecast) > 0:
-        beta = args.forecast.pop(0)
-        if beta > 1 or beta < 0:
-            print('beta deve essere compreso tra 0 e 1')
-            exit(-1)
-
     export = args.export
 
+    # inizializzo la lista per mantenere i risultati degli speedtest
     points = []
 
+    # inizializzo le liste per mantenere le previsioni
+    fcasts_upload = []
+    fcasts_download = []
+    fcasts_ping = []
+
+    # inizializzo le soglie per il controllo delle anomalie
+    threshold_upload = -1
+    threshold_download = -1
+    threshold_ping = float('inf')
+
     #eseguo i test
+    warnings.simplefilter(action='ignore', category=FutureWarning)
     for i in range(series):
 
         init_time = time.time()
         print('Avvio speedtest numero ' + str(i+1))
         results = test()
         print('Speedtest terminato')
-        final_time = time.time()
-
         write_point(points, results)
 
-        if (i != 4):
+        # controllo se ci sono anomalie
+        if len(points) >= 3:
+            check_anomaly('download', points[-1]['download'], fcasts_download[-1], threshold_download)
+            check_anomaly('upload', points[-1]['upload'], fcasts_upload[-1], threshold_upload)
+            check_anomaly('ping', points[-1]['ping'], fcasts_ping[-1], threshold_ping)
+
+        # converto la lista in un dataframe
+        dataframe = points2DataFrame(points, rate)
+
+        if (i > 0):
+            # eseguo le previsioni
+            fcasts_download.extend((ses(dataframe, 'download', alpha).to_list()))
+            fcasts_ping.extend(ses(dataframe, 'ping', alpha).to_list())
+            fcasts_upload.extend(ses(dataframe, 'upload', alpha).to_list())
+
+            # aggiorno le soglie
+            if (i > 1):
+                threshold_download = fcasts_download[-1] - statistics.stdev(fcasts_download)
+                threshold_upload = fcasts_upload[-1] - statistics.stdev(fcasts_upload)
+                threshold_ping = fcasts_ping[-1] + statistics.stdev(fcasts_ping)
+
+        final_time = time.time()
+
+        if (i != series-1):
             time.sleep(rate*60 - (final_time - init_time))
 
     #creo le directory per i dati
@@ -199,15 +232,15 @@ def main():
     #esporto dati in csv
     if export==True:
         dataframe.to_csv("./data.csv")
+        print(dataframe)
 
     #creo i grafici delle previsioni
     if not os.path.exists(GRAPHICS):
         os.makedirs(GRAPHICS)
 
-    warnings.simplefilter(action='ignore', category=FutureWarning)
-    create_graphs(dataframe, 'ping', alpha, beta, rate)
-    create_graphs(dataframe, 'download', alpha, beta, rate)
-    create_graphs(dataframe, 'upload', alpha, beta, rate)
+    create_graphs(dataframe, 'ping', alpha, rate)
+    create_graphs(dataframe, 'download', alpha, rate)
+    create_graphs(dataframe, 'upload', alpha, rate)
 
 '''----------------------------------------------------------------------------------------------'''
 
