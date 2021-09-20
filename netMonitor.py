@@ -7,6 +7,7 @@ import matplotlib.pyplot as plot
 import statistics
 import warnings
 from datetime import datetime
+from pandas.core import series
 from speedtest import Speedtest
 from statsmodels.tsa.api import SimpleExpSmoothing
 
@@ -22,11 +23,11 @@ def parse_args():
     parser = argparse.ArgumentParser(prog="netMonitor.py")
 
     parser.add_argument("-t","--times", help="esegue uno speedtest <times> volte",
-            type=int, metavar=('times'), default=5)
+            type=int, metavar=('times'), default=7)
     parser.add_argument("-p","--period", help="indica il periodo in minuti con cui eseguire gli speedtest",
             type=int, metavar=('period'), default=3)
     parser.add_argument("-f","--forecast", help="esegue una previsione usando <alpha>",
-            type=float, metavar=('alpha'), default=0.50)
+            type=float, metavar=('alpha'), default=0.60)
     parser.add_argument("-v", "--verbose", help="stampa i risultati al termine dello script", action="store_true")
     parser.add_argument("-e", "--export", help="esporta i grafici e i dati raccolti", action="store_true")
 
@@ -207,7 +208,7 @@ def main():
             # converto la lista in un dataframe
             dataframe = points2DataFrame(points, period)
 
-            if (i > 0):
+            if 0 < i < times:
                 # eseguo le previsioni
                 fcasts_download.extend((ses(dataframe, 'download', alpha).to_list()))
                 fcasts_ping.extend(ses(dataframe, 'ping', alpha).to_list())
