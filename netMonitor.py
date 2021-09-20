@@ -23,7 +23,7 @@ def parse_args():
 
     parser.add_argument("-t","--times", help="esegue uno speedtest <times> volte",
             type=int, metavar=('times'), default=5)
-    parser.add_argument("-p","--period", help="indica il periodo con cui eseguire gli speedtest",
+    parser.add_argument("-p","--period", help="indica il periodo in minuti con cui eseguire gli speedtest",
             type=int, metavar=('period'), default=3)
     parser.add_argument("-f","--forecast", help="esegue una previsione usando <alpha>",
             type=float, metavar=('alpha'), default=0.50)
@@ -106,16 +106,16 @@ def check_anomaly (attribute, point, forecast, threshold):
         if attribute == 'ping' :
             # il valore misurato supera il massimo previsto
             print("Sembra che ci siano problemi di latenza:")
-            print(f"Valore previsto: %.3f ms" % forecast)
-            print(f"Valore massimo previsto: %.3f ms" % threshold)
-            print(f"Valore letto: %.3f ms\n" % point)
+            print(f"\tValore previsto: %.3f ms" % forecast)
+            print(f"\tValore massimo previsto: %.3f ms" % threshold)
+            print(f"\tValore letto: %.3f ms" % point)
     elif point < threshold :
         if attribute == 'upload' or attribute == 'download':
             # il valore misurato è inferiore al minimo previsto
             print("Sembra che ci sia un problema in " + attribute)
-            print(f"Valore previsto: %.3f Mbps" % forecast)
-            print(f"Valore minimo previsto: %.3f Mbps" % threshold)
-            print(f"Valore letto: %.3f Mbps\n" % point)
+            print(f"\tValore previsto: %.3f Mbps" % forecast)
+            print(f"\tValore minimo previsto: %.3f Mbps" % threshold)
+            print(f"\tValore letto: %.3f Mbps" % point)
 
 '''----------------------------------------------------------------------------------------------'''
 
@@ -215,9 +215,9 @@ def main():
 
                 # aggiorno le soglie
                 if (i > 1):
-                    threshold_download = fcasts_download[LAST_ELEMENT] - statistics.stdev(fcasts_download)
-                    threshold_upload = fcasts_upload[LAST_ELEMENT] - statistics.stdev(fcasts_upload)
-                    threshold_ping = fcasts_ping[LAST_ELEMENT] + statistics.stdev(fcasts_ping)
+                    threshold_download = fcasts_download[LAST_ELEMENT] - (2 * statistics.stdev(fcasts_download))
+                    threshold_upload = fcasts_upload[LAST_ELEMENT] - (2 * statistics.stdev(fcasts_upload))
+                    threshold_ping = fcasts_ping[LAST_ELEMENT] + (2 * statistics.stdev(fcasts_ping))
 
             final_time = time.time()
 
@@ -235,6 +235,7 @@ def main():
 
     if nTest > 0 and (verbose or export) :
         dataframe = points2DataFrame(points, period)
+        print()
         print(dataframe)
 
         if export:
