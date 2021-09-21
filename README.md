@@ -32,7 +32,7 @@ Inoltre, l'insieme di previsioni viene usato per definire delle **thresholds**: 
 - per definire le soglie viene usata l'ultima previsione eseguita e la deviazione standard di tutte le previsioni eseguite fino a quel momento;
 - la funzione `stdev` della libreria `statistics` necessita almeno due valori per calcolare la deviazione standard, quindi le *thresholds* vengono definite a partire dalla terza iterazione.
 
-Se l'utente usa il flag `--export`, allora durante l'esecuzione viene creata (se non esiste) la directory `data`, all'interno della quale è possibile trovare le directory contenenti i grafici dei dati e delle previsioni in formato `.pdf` e i dati esportati in formato `.csv`.
+Se l'utente usa il flag `--export`, allora durante l'esecuzione viene creata (se non esiste) la directory `data`, all'interno della quale è possibile trovare le directory contenenti i grafici dei dati e delle previsioni in formato `.png` e i dati esportati in formato `.csv`.
 
 ### Struttura del progetto
 
@@ -47,21 +47,21 @@ Esempio di come si presenta la directory al termine di alcune esecuzioni in cui 
     ├── 2021-09-19_19.26/
     │   ├── data.csv
     │   └── graphics/
-    │       ├── download.pdf
-    │       ├── ping.pdf
-    │       └── upload.pdf
+    │       ├── download.png
+    │       ├── ping.png
+    │       └── upload.png
     ├── 2021-09-19_17.32/
     │   ├── data.csv
     │   └── graphics/
-    │       ├── download.pdf
-    │       ├── ping.pdf
-    │       └── upload.pdf
+    │       ├── download.png
+    │       ├── ping.png
+    │       └── upload.png
     └── 2021-09-19_14.21/
         ├── data.csv
         └── graphics/
-            ├── download.pdf
-            ├── ping.pdf
-            └── upload.pdf
+            ├── download.png
+            ├── ping.png
+            └── upload.png
 ```
 
 ## Installazione

@@ -145,7 +145,7 @@ def create_graphs(data, attribute, alpha, period):
         plot.ylabel('Upload (Mbps)')
 
     plot.grid(axis='both', which='both')
-    plot.savefig(f'{GRAPHICS}/{attribute}.pdf', format='pdf')
+    plot.savefig(f'{GRAPHICS}/{attribute}.png', format='png')
 
 '''----------------------------------------------------------------------------------------------'''
 
